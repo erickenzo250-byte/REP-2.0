@@ -1,16 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# orthotrack_pro.py  –  World‑Class Orthopedic Procedure Management System
+# app.py – OrthoTrack Pro  (world‑class UI, dark‑mode, analytics, reports)
 # ─────────────────────────────────────────────────────────────────────────────
-# 1️⃣ Imports & basic config
-# 2️⃣ Design system & colour dictionary
-# 3️⃣ Data layer (JSON persistence – simple & portable)
-# 4️⃣ Plotly theme helper
-# 5️⃣ UI helpers (metric card, ag‑grid, dark‑mode toggle)
-# 6️⃣ Sidebar navigation
-# 7️⃣ Pages: Dashboard • Add Procedure • Procedure Log • Analytics • Reports
-# 8️⃣ PDF / Excel builders (unchanged logic, just fed the new colours)
-# ─────────────────────────────────────────────────────────────────────────────
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -25,14 +15,11 @@ from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph,
     Spacer, HRFlowable,
 )
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import xlsxwriter
-
-# Ag‑Grid (fast, filterable, paginated tables)
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1️⃣ PAGE CONFIG
+# 1️⃣  PAGE CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="OrthoTrack Pro",
@@ -42,107 +29,107 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2️⃣ DESIGN SYSTEM & COLOUR DICTIONARY
+# 2️⃣  DESIGN SYSTEM & COLOUR DICTIONARY
 # ─────────────────────────────────────────────────────────────────────────────
-# Core palette – colour‑blind safe, high contrast
 COLOR = {
-    "primary"   : "#0F4C75",   # deep navy (used for header background)
-    "accent"    : "#3282B8",   # sky‑blue (buttons, highlights)
+    # core palette – colour‑blind safe, high contrast
+    "primary"   : "#0F4C75",   # deep navy – header background
+    "accent"    : "#3282B8",   # sky‑blue – buttons & highlights
     "ink"       : "#1B262C",   # darkest text
-    "soft_teal" : "#BBE1FA",   # light teal (cards)
+    "soft_teal" : "#BBE1FA",   # light teal – card backgrounds
     "page_bg"   : "#F7F7FF",   # page background
-    "warning"   : "#F08A5D",   # orange for warnings
-    "error"     : "#B83B5E",   # red for errors
+    "warning"   : "#F08A5D",   # orange – warnings
+    "error"     : "#B83B5E",   # red – errors
     "border"    : "#E5E5E5",   # light border
     "white"     : "#FFFFFF",   # crisp white
     "card_bg"   : "#F0F4FF",   # subtle card background
 }
 
-# Fallback list of distinct colors for discrete series (used in a few places)
-COLORS = px.colors.qualitative.Vivid
+# A small palette that Plotly can use for discrete series (e.g. top‑10 reps)
+DISCRETE_PALETTE = px.colors.qualitative.Safe
 
-# Global CSS – custom look + a tiny dark‑mode toggle that we later hide
+# Global CSS (fonts, colours, dark‑mode toggle button)
 st.markdown(
-    """
+    f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap');
 
-    :root{
-        --c-primary   : """ + COLOR["primary"] + """;
-        --c-accent    : """ + COLOR["accent"] + """;
-        --c-ink       : """ + COLOR["ink"] + """;
-        --c-soft-teal : """ + COLOR["soft_teal"] + """;
-        --c-page-bg   : """ + COLOR["page_bg"] + """;
-        --c-border    : """ + COLOR["border"] + """;
-        --c-white     : """ + COLOR["white"] + """;
-        --c-card-bg   : """ + COLOR["card_bg"] + """;
-    }
+    :root{{
+        --c-primary   : {COLOR["primary"]};
+        --c-accent    : {COLOR["accent"]};
+        --c-ink       : {COLOR["ink"]};
+        --c-soft-teal : {COLOR["soft_teal"]};
+        --c-page-bg   : {COLOR["page_bg"]};
+        --c-border    : {COLOR["border"]};
+        --c-white     : {COLOR["white"]};
+        --c-card-bg   : {COLOR["card_bg"]};
+    }}
 
-    html, body, [class*="css"]{
+    html, body, [class*="css"]{{
         font-family:'Inter',sans-serif !important;
         background:var(--c-page-bg) !important;
         color:var(--c-ink) !important;
-    }
+    }}
 
-    /* ── Sidebar ── */
-    [data-testid="stSidebar"]{
+    /* Sidebar */
+    [data-testid="stSidebar"]{{
         background:var(--c-primary) !important;
         border-right:1px solid #1e2d3d !important;
-    }
-    [data-testid="stSidebar"] *{color:#E0E7FF !important;}
-    [data-testid="stSidebar"] .sb-brand{
+    }}
+    [data-testid="stSidebar"] *{{color:#E0E7FF !important;}}
+    [data-testid="stSidebar"] .sb-brand{{
         background:linear-gradient(135deg,var(--c-accent),var(--c-soft-teal));
         padding:1.4rem 1.2rem 1.2rem;
         margin-bottom:.5rem;
         border-radius:8px;
-    }
-    [data-testid="stSidebar"] .sb-brand h2{
+    }}
+    [data-testid="stSidebar"] .sb-brand h2{{
         font-family:'Bebas Neue',sans-serif !important;
         font-size:1.9rem !important;
         letter-spacing:2px;
         color:white !important;
         margin:0;
-    }
-    [data-testid="stSidebar"] .sb-brand p{
+    }}
+    [data-testid="stSidebar"] .sb-brand p{{
         font-size:.75rem !important;
         color:rgba(255,255,255,.7);
         margin:0;
         letter-spacing:1.2px;
-    }
+    }}
 
-    /* ── Page Header ── */
-    .ph{
+    /* Page header */
+    .ph{{
         background:linear-gradient(135deg,var(--c-primary),var(--c-accent));
         border-radius:16px;
         padding:2rem 2.5rem;
         margin-bottom:1.6rem;
         position:relative; overflow:hidden;
-    }
-    .ph::after,.ph::before{
+    }}
+    .ph::after,.ph::before{{
         content:'';position:absolute;border-radius:50%;
         opacity:.13;pointer-events:none;
-    }
-    .ph::after{
+    }}
+    .ph::after{{
         right:-60px;top:-60px;width:220px;height:220px;
         background:radial-gradient(circle,rgba(50,130,184,.3) 0%,transparent 70%);
-    }
-    .ph::before{
+    }}
+    .ph::before{{
         right:40px;bottom:-40px;width:160px;height:160px;
         background:radial-gradient(circle,rgba(15,76,117,.25) 0%,transparent 70%);
-    }
-    .ph h1{
+    }}
+    .ph h1{{
         font-family:'Bebas Neue',sans-serif !important;
         font-size:2.7rem !important;
         letter-spacing:3px;
         color:white !important;
         margin:0 0 .3rem;
-    }
-    .ph p{
+    }}
+    .ph p{{
         color:rgba(255,255,255,.6);
         font-size:.88rem;
         margin:0;
-    }
-    .ph-badge{
+    }}
+    .ph-badge{{
         display:inline-block;
         background:rgba(255,255,255,.1);
         color:var(--c-accent);
@@ -151,16 +138,14 @@ st.markdown(
         padding:.25rem .8rem;
         border-radius:20px;
         margin-bottom:.6rem;
-    }
+    }}
 
-    /* ── Section label ── */
-    .sec-lbl{
+    .sec-lbl{{
         font-size:.75rem;font-weight:700;text-transform:uppercase;
         letter-spacing:2px;color:var(--c-accent);margin-bottom:.6rem;
-    }
+    }}
 
-    /* ── Form sections ── */
-    .fs{
+    .fs{{
         background:var(--c-card-bg);
         border-left:4px solid var(--c-accent);
         border-radius:0 8px 8px 0;
@@ -170,17 +155,15 @@ st.markdown(
         text-transform:uppercase;
         letter-spacing:1.5px;
         color:var(--c-accent);
-    }
-    .fst{background:var(--c-soft-teal);border-left-color:var(--c-accent);color:var(--c-accent);}
-    .fsa{background:#FFFBEB;border-left-color:#F59E0B;color:#92400E;}
+    }}
+    .fst{{background:var(--c-soft-teal);border-left-color:var(--c-accent);color:var(--c-accent);}}
+    .fsa{{background:#FFFBEB;border-left-color:#F59E0B;color:#92400E;}}
 
-    /* ── Record field ── */
-    .rf{margin-bottom:.5rem;padding:.6rem .9rem;background:#F8FAFC;border-radius:8px;}
-    .rf .rl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-border);}
-    .rf .rv{font-size:.92rem;color:var(--c-ink);font-weight:500;}
+    .rf{{margin-bottom:.5rem;padding:.6rem .9rem;background:#F8FAFC;border-radius:8px;}}
+    .rf .rl{{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-border);}}
+    .rf .rv{{font-size:.92rem;color:var(--c-ink);font-weight:500;}}
 
-    /* ── Chip ── */
-    .chip{
+    .chip{{
         display:inline-block;
         background:linear-gradient(135deg,#EFF6FF,#DBEAFE);
         color:var(--c-accent);
@@ -188,41 +171,38 @@ st.markdown(
         padding:.25rem .7rem;
         border-radius:20px;border:1px solid #BFDBFE;
         margin:.2rem .2rem .2rem 0;
-    }
+    }}
 
-    /* ── Download card ── */
-    .dlc{
+    .dlc{{
         background:var(--c-white);
         border:1.5px solid var(--c-border);
         border-radius:14px;
         padding:1.8rem;
         text-align:center;
-    }
-    .dlc .di{font-size:2.5rem;margin-bottom:.5rem;}
-    .dlc .dt{font-weight:700;font-size:1rem;color:var(--c-ink);margin-bottom:.25rem;}
-    .dlc .dd{font-size:.8rem;color:var(--c-border);}
+    }}
+    .dlc .di{{font-size:2.5rem;margin-bottom:.5rem;}}
+    .dlc .dt{{font-weight:700;font-size:1rem;color:var(--c-ink);margin-bottom:.25rem;}}
+    .dlc .dd{{font-size:.8rem;color:var(--c-border);}}
 
-    /* ── Inputs ── */
-    .stTextInput input,.stTextArea textarea{
+    .stTextInput input,.stTextArea textarea{{
         border-radius:8px !important;
         border:1.5px solid var(--c-border) !important;
         font-family:'Inter',sans-serif !important;
         font-size:.9rem !important;
-    }
-    .stTextInput input:focus,.stTextArea textarea:focus{
+    }}
+    .stTextInput input:focus,.stTextArea textarea:focus{{
         border-color:var(--c-accent) !important;
         box-shadow:0 0 0 3px rgba(50,130,184,.12) !important;
-    }
-    .stTextInput label,.stTextArea label,.stSelectbox label,.stMultiSelect label,.stDateInput label{
+    }}
+    .stTextInput label,.stTextArea label,.stSelectbox label,.stMultiSelect label,.stDateInput label{{
         font-size:.78rem !important;
         font-weight:600 !important;
         color:var(--c-ink) !important;
         text-transform:uppercase !important;
         letter-spacing:.8px !important;
-    }
+    }}
 
-    /* ── Buttons ── */
-    .stButton>button{
+    .stButton>button{{
         font-family:'Inter',sans-serif !important;
         font-weight:600 !important;
         border-radius:8px !important;
@@ -230,160 +210,73 @@ st.markdown(
         background:var(--c-accent);
         color:#fff;
         border:none;
-    }
-    .stButton>button:hover{
+    }}
+    .stButton>button:hover{{
         transform:translateY(-1px);
         box-shadow:0 4px 12px rgba(50,130,184,.3);
-    }
-    .stButton>button[kind="secondary"]{
+    }}
+    .stButton>button[kind="secondary"]{{
         background:var(--c-soft-teal);
         color:var(--c-ink);
-    }
+    }}
 
-    /* ── Tabs ── */
-    .stTabs [data-baseweb="tab-list"]{
+    .stTabs [data-baseweb="tab-list"]{{
         background:transparent !important;
         border-bottom:2px solid var(--c-border) !important;
-    }
-    .stTabs [data-baseweb="tab"]{
+    }}
+    .stTabs [data-baseweb="tab"]{{
         font-family:'Inter',sans-serif !important;
         font-weight:600 !important;
         font-size:.85rem !important;
         padding:.7rem 1.2rem !important;
         color:var(--c-border) !important;
-    }
-    .stTabs [aria-selected="true"]{
+    }}
+    .stTabs [aria-selected="true"]{{
         color:var(--c-accent) !important;
         border-bottom:2px solid var(--c-accent) !important;
-    }
+    }}
 
-    /* ── Metric (fallback) ── */
-    [data-testid="metric-container"] label{
+    [data-testid="metric-container"] label{{
         font-family:'Inter',sans-serif !important;
         font-size:.72rem !important;
         font-weight:600 !important;
         text-transform:uppercase !important;
         letter-spacing:.8px !important;
         color:var(--c-border) !important;
-    }
-    [data-testid="metric-container"] [data-testid="stMetricValue"]{
+    }}
+    [data-testid="metric-container"] [data-testid="stMetricValue"]{{
         font-family:'Bebas Neue',sans-serif !important;
         font-size:2.2rem !important;
         color:var(--c-ink) !important;
-    }
+    }}
 
-    /* ── Scrollbar ── */
-    ::-webkit-scrollbar{width:6px;height:6px;}
-    ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px;}
+    ::-webkit-scrollbar{{width:6px;height:6px;}}
+    ::-webkit-scrollbar-thumb{{background:#CBD5E1;border-radius:3px;}}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3️⃣ DATA LAYER (JSON persistence – simple & portable)
-# ─────────────────────────────────────────────────────────────────────────────
-DATA_FILE = "procedures.json"
-
-
-def load_data() -> list:
-    """Read the JSON store – returns a list of dicts."""
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
-    return []
-
-
-def save_data(data: list):
-    """Write the full list back to the JSON store."""
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2, default=str)
-
-
-@st.cache_data(ttl=2)
-def get_df() -> pd.DataFrame:
-    """Load JSON → DataFrame with useful date columns."""
-    raw = load_data()
-    if not raw:
-        return pd.DataFrame()
-    df = pd.DataFrame(raw)
-    df["date"] = pd.to_datetime(df["date"])
-    df["month"] = df["date"].dt.to_period("M").astype(str)
-    df["year"] = df["date"].dt.year
-    df["quarter"] = df["date"].dt.to_period("Q").astype(str)
-    return df
-
-
-def bust():
-    """Clear the cached DataFrame after a write operation."""
-    get_df.clear()
-
-
-def next_inv(data: list) -> str:
-    """Generate a sequential invoice number for the current year."""
-    yr = datetime.now().year
-    nums = []
-    for r in data:
-        inv = r.get("invoice", "")
-        if str(yr) in inv:
-            try:
-                nums.append(int(inv.split("-")[-1]))
-            except Exception:
-                pass
-    nxt = max(nums) + 1 if nums else 1
-    return f"INV-{yr}-{nxt:04d}"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 4️⃣ PLOTLY THEME HELPER
-# ─────────────────────────────────────────────────────────────────────────────
-BASE = dict(
-    paper_bgcolor=COLOR["white"],
-    plot_bgcolor="#F8FAFC",
-    font=dict(family="Inter", color=COLOR["ink"]),
-    title_font=dict(family="Inter", size=13, color=COLOR["border"]),
-    margin=dict(t=44, b=28, l=20, r=16),
-    legend=dict(font=dict(size=11, color=COLOR["ink"])),
-)
-
-
-def sc(fig: go.Figure, title: str = "", palette_key: str = "seq_blue") -> go.Figure:
-    """
-    Apply the global theme and optional Plotly sequential colour‑scale.
-    `palette_key` must be a key from the COLOR dict that maps to a Plotly scheme.
-    """
-    seq_name = COLOR.get(palette_key, "Blues") if palette_key in COLOR else palette_key
-    fig.update_layout(**BASE, title=dict(text=title, x=0.01, xanchor="left"))
-    # If the trace uses a numeric colour field, give it the palette
-    for tr in fig.data:
-        if hasattr(tr, "marker") and hasattr(tr.marker, "color"):
-            tr.marker.colorscale = seq_name
-    fig.update_xaxes(showgrid=False, linecolor=COLOR["border"], tickfont=dict(size=10))
-    fig.update_yaxes(gridcolor="#F1F5F9", linecolor=COLOR["border"], tickfont=dict(size=10))
-    return fig
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5️⃣ UI HELPERS (metric card, Ag‑Grid, dark‑mode toggle)
+# 3️⃣  DARK‑MODE TOGGLE (pure‑Python – no JS)
 # ─────────────────────────────────────────────────────────────────────────────
 if "dark_mode" not in st.session_state:
     st.session_state["dark_mode"] = False
 
 
 def toggle_dark():
-    """Flip the dark‑mode flag and rerun the script."""
+    """Flip the dark‑mode flag and rerun."""
     st.session_state["dark_mode"] = not st.session_state["dark_mode"]
     st.experimental_rerun()
 
 
-# Tiny Sun/Moon button – lives in the very top‑right corner of the page
+# Small sun/moon button in the top‑right corner
 col_left, col_right = st.columns([0.9, 0.1])
 with col_right:
     if st.button("🌙" if not st.session_state["dark_mode"] else "☀️", key="dark_toggle"):
         toggle_dark()
 
-
-# Apply the dark‑mode CSS *after* the button so it overrides the defaults
+# Apply dark‑mode CSS *after* the button so the flag takes effect immediately
 if st.session_state["dark_mode"]:
     st.markdown(
         """
@@ -404,9 +297,95 @@ if st.session_state["dark_mode"]:
         unsafe_allow_html=True,
     )
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 4️⃣  DATA LAYER  (JSON persistence – simple, portable)
+# ─────────────────────────────────────────────────────────────────────────────
+DATA_FILE = "procedures.json"
 
+
+def load_data() -> list:
+    """Read the JSON file – returns a list of dictionaries."""
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+
+def save_data(data: list):
+    """Write the full list back to the JSON file."""
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+@st.cache_data(ttl=2)
+def get_df() -> pd.DataFrame:
+    """Load the JSON → DataFrame + useful date columns."""
+    raw = load_data()
+    if not raw:
+        return pd.DataFrame()
+    df = pd.DataFrame(raw)
+    df["date"] = pd.to_datetime(df["date"])
+    df["month"] = df["date"].dt.to_period("M").astype(str)
+    df["year"] = df["date"].dt.year
+    df["quarter"] = df["date"].dt.to_period("Q").astype(str)
+    return df
+
+
+def bust():
+    """Clear the cached DataFrame after any write."""
+    get_df.clear()
+
+
+def next_inv(data: list) -> str:
+    """Generate a sequential invoice number for the current year."""
+    yr = datetime.now().year
+    nums = []
+    for r in data:
+        inv = r.get("invoice", "")
+        if str(yr) in inv:
+            try:
+                nums.append(int(inv.split("-")[-1]))
+            except Exception:
+                pass
+    nxt = max(nums) + 1 if nums else 1
+    return f"INV-{yr}-{nxt:04d}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5️⃣  PLOTLY THEME HELPER
+# ─────────────────────────────────────────────────────────────────────────────
+BASE = dict(
+    paper_bgcolor=COLOR["white"],
+    plot_bgcolor="#F8FAFC",
+    font=dict(family="Inter", color=COLOR["ink"]),
+    title_font=dict(family="Inter", size=13, color=COLOR["border"]),
+    margin=dict(t=44, b=28, l=20, r=16),
+    legend=dict(font=dict(size=11, color=COLOR["ink"])),
+)
+
+
+def sc(fig: go.Figure, title: str = "", palette_key: str = "seq_blue") -> go.Figure:
+    """
+    Apply the global theme to a Plotly figure.
+    `palette_key` may be a key from the COLOR dict that maps to a Plotly sequential palette,
+    or any Plotly palette name (e.g. "Blues").
+    """
+    seq_name = COLOR.get(palette_key, "Blues") if palette_key in COLOR else palette_key
+    fig.update_layout(**BASE, title=dict(text=title, x=0.01, xanchor="left"))
+    # If the trace uses a numeric colour field, give it the palette
+    for tr in fig.data:
+        if hasattr(tr, "marker") and hasattr(tr.marker, "color"):
+            tr.marker.colorscale = seq_name
+    fig.update_xaxes(showgrid=False, linecolor=COLOR["border"], tickfont=dict(size=10))
+    fig.update_yaxes(gridcolor="#F1F5F9", linecolor=COLOR["border"], tickfont=dict(size=10))
+    return fig
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6️⃣  UI HELPERS (metric cards, Ag‑Grid table, safe‑index helper)
+# ─────────────────────────────────────────────────────────────────────────────
 def metric_card(title: str, value, delta: str = None):
-    """Render a metric inside a subtle card with hover lift."""
+    """Render a metric inside a subtle card with a hover lift."""
     card_css = """
     <style>
     .metric-card{
@@ -439,7 +418,7 @@ def metric_card(title: str, value, delta: str = None):
 
 
 def ag_grid(df: pd.DataFrame, height: int = 420):
-    """Paginated, sortable, filterable table using Ag‑Grid."""
+    """Paginated, searchable Ag‑Grid table."""
     gb = GridOptionsBuilder.from_dataframe(df)
     gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=20)
     gb.configure_default_column(filter=True, sortable=True, resizable=True)
@@ -454,8 +433,20 @@ def ag_grid(df: pd.DataFrame, height: int = 420):
     )
 
 
+def safe_index(value, choices):
+    """
+    Return a safe index for a `selectbox`.
+    If `value` is not in `choices`, temporarily add it so the user can see / edit it.
+    """
+    if value in choices:
+        return choices.index(value)
+    # temporarily expose the value
+    choices.append(value)
+    return choices.index(value)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 6️⃣ CONSTANT LISTS (Reps, Facilities, etc.)
+# 7️⃣  CONSTANT LISTS (Reps, Facilities, etc.)
 # ─────────────────────────────────────────────────────────────────────────────
 REPS = sorted(
     [
@@ -572,9 +563,8 @@ IMPLANTS = sorted(
     ]
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-# 7️⃣ SIDEBAR (navigation + live stats)
+# 8️⃣  SIDEBAR (navigation + live statistics)
 # ─────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(
@@ -607,15 +597,16 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
         now_m = datetime.now()
-        this_month = dfs[
+        this_mo = dfs[
             (dfs["date"].dt.month == now_m.month) & (dfs["date"].dt.year == now_m.year)
         ]
-        for val, lbl in [
+        stats = [
             (len(dfs), "Total Procedures"),
-            (len(this_month), "This Month"),
+            (len(this_mo), "This Month"),
             (dfs["rep"].nunique() if "rep" in dfs.columns else 0, "Active Reps"),
             (dfs["facility"].nunique() if "facility" in dfs.columns else 0, "Facilities"),
-        ]:
+        ]
+        for val, lbl in stats:
             st.markdown(
                 f'<div class="sp"><div class="sv">{val}</div><div class="sl">{lbl}</div></div>',
                 unsafe_allow_html=True,
@@ -627,7 +618,7 @@ with st.sidebar:
     )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 8️⃣ PAGE – DASHBOARD
+# 9️⃣  PAGE – DASHBOARD
 # ─────────────────────────────────────────────────────────────────────────────
 if page == "📊  Dashboard":
     st.markdown(
@@ -651,7 +642,7 @@ if page == "📊  Dashboard":
         (df["date"].dt.month == now.month) & (df["date"].dt.year == now.year)
     ]
 
-    # ---- top KPIs (cards) ----
+    # ---- Top KPI cards -------------------------------------------------------
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         metric_card("Total Procedures", len(df), delta=str(len(this_month)))
@@ -664,7 +655,7 @@ if page == "📊  Dashboard":
 
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
-    # ── Row 1 – Monthly volume + Region pie ──
+    # ---- Row 1 : Monthly bar + Region pie ----
     col1, col2 = st.columns([3, 2])
     with col1:
         monthly = df.groupby("month").size().reset_index(name="Count")
@@ -710,7 +701,7 @@ if page == "📊  Dashboard":
             fig2.update_layout(showlegend=False, height=280)
             st.plotly_chart(fig2, use_container_width=True)
 
-    # ── Row 2 – Top Reps / Top Procedures ──
+    # ---- Row 2 : Top Reps / Top Procedures ----
     col3, col4 = st.columns(2)
     with col3:
         if "rep" in df.columns:
@@ -758,7 +749,7 @@ if page == "📊  Dashboard":
             )
             st.plotly_chart(fig4, use_container_width=True)
 
-    # ── Row 3 – Top Facilities + Recent Table ──
+    # ---- Row 3 : Top Facilities + Recent Procedures Table ----
     col5, col6 = st.columns([2, 3])
     with col5:
         if "facility" in df.columns:
@@ -777,8 +768,8 @@ if page == "📊  Dashboard":
             sc(fig5, "Top Facilities")
             fig5.update_layout(
                 yaxis=dict(autorange="reversed"),
-                showlegend=False,
                 height=300,
+                showlegend=False,
                 coloraxis_showscale=False,
             )
             st.plotly_chart(fig5, use_container_width=True)
@@ -795,7 +786,7 @@ if page == "📊  Dashboard":
             rd["date"] = rd["date"].dt.strftime("%d %b %Y")
         ag_grid(rd, height=300)
 
-    # ── Row 4 – Quarterly Rep Trend ──
+    # ---- Row 4 : Quarterly Rep Trend (if data exists) ----
     if "quarter" in df.columns and "rep" in df.columns:
         st.markdown("---")
         qr = df.groupby(["quarter", "rep"]).size().reset_index(name="Count")
@@ -805,14 +796,15 @@ if page == "📊  Dashboard":
             y="Count",
             color="rep",
             markers=True,
-            color_discrete_sequence=COLORS,
+            color_discrete_sequence=DISCRETE_PALETTE,
         )
         sc(fig6, "Quarterly Performance by Rep")
         fig6.update_layout(height=300, legend=dict(orientation="h", y=-0.25))
         st.plotly_chart(fig6, use_container_width=True)
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 9️⃣ PAGE – ADD PROCEDURE
+# 🔟  PAGE – ADD PROCEDURE
 # ─────────────────────────────────────────────────────────────────────────────
 elif page == "➕  Add Procedure":
     st.markdown(
@@ -829,7 +821,7 @@ elif page == "➕  Add Procedure":
     raw = load_data()
     auto = next_inv(raw)
 
-    # Card container for the whole form (makes it look like a panel)
+    # Card container for the whole form
     st.markdown(
         """
         <div style="background:#F0F4FF;border-left:4px solid #3282B8;
@@ -858,7 +850,7 @@ elif page == "➕  Add Procedure":
             reg_sel = st.selectbox("🌍 Region *", ["— Select —"] + REGIONS)
         fac_other = st.text_input("Facility name *", key="fac_o") if fac_sel == "Other" else ""
 
-        # ---- Clinical details ----
+        # ---- Clinical Details ----
         st.markdown("<div class='fs'>🔬 Clinical Details</div>", unsafe_allow_html=True)
         c6, c7 = st.columns(2)
         with c6:
@@ -948,8 +940,9 @@ elif page == "➕  Add Procedure":
             st.success(f"✅ Saved — Invoice **{invoice.strip()}** · {proc_f} · {fac_f}")
             st.balloons()
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 🔟 PAGE – PROCEDURE LOG
+# 📋 PAGE – PROCEDURE LOG
 # ─────────────────────────────────────────────────────────────────────────────
 elif page == "📋  Procedure Log":
     st.markdown(
@@ -1133,16 +1126,6 @@ elif page == "📋  Procedure Log":
         match = [r for r in raw if r.get("invoice") == edit_inv.strip()]
         if edit_inv.strip() and match:
             rec = match[0]
-
-            # ---------- Safe index helper ----------
-            def safe_index(value, choices):
-                """Return an index; add the value temporarily if it isn’t in the list."""
-                if value in choices:
-                    return choices.index(value)
-                # temporarily expose it so the user can see & change it
-                choices.append(value)
-                return choices.index(value)
-
             with st.form("edit_form"):
                 ec1, ec2, ec3 = st.columns(3)
                 with ec1:
@@ -1214,6 +1197,7 @@ elif page == "📋  Procedure Log":
             else:
                 st.warning("Invoice not found.")
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 📈 PAGE – ANALYTICS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1239,7 +1223,7 @@ elif page == "📈  Analytics":
         with fa1:
             sy = st.selectbox(
                 "Year",
-                ["All"] + sorted(df["year"].dropna().astype(str).tolist(), reverse=True),
+                ["All"] + sorted(df["year"].dropna().astype(str).tolist(), reverse=True,
             )
         with fa2:
             sa2 = st.selectbox(
@@ -1258,7 +1242,7 @@ elif page == "📈  Analytics":
 
     # ── Trends ──
     with tab1:
-        # Monthly area chart
+        # Monthly area
         mo = adf.groupby("month").size().reset_index(name="Count")
         fig = px.area(
             mo,
@@ -1266,16 +1250,12 @@ elif page == "📈  Analytics":
             y="Count",
             color_discrete_sequence=[COLOR["accent"]],
         )
-        fig.update_traces(
-            fill="tozeroy",
-            fillcolor="rgba(50,130,184,.12)",
-            line=dict(width=2.5, color="#0D9488"),
-        )
+        fig.update_traces(fill="tozeroy", fillcolor="rgba(50,130,184,.12)", line=dict(width=2.5, color="#0D9488"))
         sc(fig, "Monthly Procedure Volume", "seq_teal")
         fig.update_layout(height=280)
         st.plotly_chart(fig, use_container_width=True)
 
-        # Day‑of‑week bar
+        # Day‑of‑week
         dow_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         dow = (
             adf["date"]
@@ -1297,7 +1277,7 @@ elif page == "📈  Analytics":
         fig2.update_layout(height=280, showlegend=False, coloraxis_showscale=False)
         st.plotly_chart(fig2, use_container_width=True)
 
-        # Quarterly trends (if we have the columns)
+        # Quarterly trends (if present)
         if "quarter" in adf.columns and "rep" in adf.columns:
             qr = adf.groupby(["quarter", "rep"]).size().reset_index(name="Count")
             fig3 = px.line(
@@ -1306,7 +1286,7 @@ elif page == "📈  Analytics":
                 y="Count",
                 color="rep",
                 markers=True,
-                color_discrete_sequence=COLORS,
+                color_discrete_sequence=DISCRETE_PALETTE,
             )
             sc(fig3, "Quarterly Trends by Rep")
             fig3.update_layout(height=300, legend=dict(orientation="h", y=-0.25))
@@ -1322,7 +1302,7 @@ elif page == "📈  Analytics":
                 y="Count",
                 color="procedure",
                 markers=True,
-                color_discrete_sequence=COLORS,
+                color_discrete_sequence=DISCRETE_PALETTE,
             )
             sc(fig4, "Top Procedure Types Over Time")
             fig4.update_layout(height=300, legend=dict(orientation="h", y=-0.25))
@@ -1363,7 +1343,7 @@ elif page == "📈  Analytics":
                     values="Count",
                     names="Region",
                     hole=0.45,
-                    color_discrete_sequence=COLORS,
+                    color_discrete_sequence=DISCRETE_PALETTE,
                 )
                 fig6.update_traces(textposition="inside", textinfo="percent+label")
                 sc(fig6, "Regional Distribution")
@@ -1471,7 +1451,7 @@ elif page == "📈  Analytics":
                     values="Count",
                     names="Implant",
                     hole=0.4,
-                    color_discrete_sequence=COLORS,
+                    color_discrete_sequence=DISCRETE_PALETTE,
                 )
                 fig12.update_traces(textposition="inside", textinfo="percent+label")
                 sc(fig12, "Implant Mix (Top 10)")
@@ -1489,7 +1469,7 @@ elif page == "📈  Analytics":
                 y="Count",
                 color="implants",
                 markers=True,
-                color_discrete_sequence=COLORS,
+                color_discrete_sequence=DISCRETE_PALETTE,
             )
             sc(fig13, "Top Implant Usage Over Time")
             fig13.update_layout(height=300, legend=dict(orientation="h", y=-0.25))
@@ -1497,7 +1477,7 @@ elif page == "📈  Analytics":
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 🗂 PAGE – REPORTS
+# 📥 PAGE – REPORTS
 # ─────────────────────────────────────────────────────────────────────────────
 elif page == "⬇️  Reports":
     st.markdown(
@@ -1533,7 +1513,7 @@ elif page == "⬇️  Reports":
     with rb2:
         fmt = st.selectbox("Export Format", ["📄 PDF (Branded)", "📊 Excel Workbook (.xlsx)", "📑 CSV"])
 
-    # ---- Filter according to chosen scope ----
+    # ---- Apply scope filter -------------------------------------------------
     filtered = df.copy()
     label = "All Procedures"
 
@@ -1584,8 +1564,9 @@ elif page == "⬇️  Reports":
     st.markdown("---")
     st.markdown("### ⬇️  Download")
     report_title = f"OrthoTrack Pro — {label}"
-    ts = datetime.now().strftime("%Y%m%d_%H%M")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
 
+    # ----------------------------------------------------- PDF ----------
     if "PDF" in fmt:
         st.markdown(
             """
@@ -1603,18 +1584,19 @@ elif page == "⬇️  Reports":
             st.download_button(
                 "⬇️  Download PDF",
                 data=pdf_buf,
-                file_name=f"orthotrack_{ts}.pdf",
+                file_name=f"orthotrack_{timestamp}.pdf",
                 mime="application/pdf",
                 use_container_width=True,
             )
 
+    # ----------------------------------------------------- Excel ----------
     elif "Excel" in fmt:
         st.markdown(
             """
             <div class="dlc">
                 <div class="di">📊</div>
                 <div class="dt">Excel Workbook</div>
-                <div class="dd">3‑sheet workbook: Procedures · Summary Statistics · Regional Breakdown — fully formatted</div>
+                <div class="dd">3‑sheet workbook: Procedures · Summary Statistics · Regional Breakdown — fully formatted</div> 
             </div>
             """,
             unsafe_allow_html=True,
@@ -1625,11 +1607,12 @@ elif page == "⬇️  Reports":
             st.download_button(
                 "⬇️  Download Excel",
                 data=excel_buf,
-                file_name=f"orthotrack_{ts}.xlsx",
+                file_name=f"orthotrack_{timestamp}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
 
+    # ----------------------------------------------------- CSV ----------
     elif "CSV" in fmt:
         st.markdown(
             """
@@ -1645,25 +1628,24 @@ elif page == "⬇️  Reports":
         if "date" in csv_df.columns:
             csv_df["date"] = csv_df["date"].dt.strftime("%Y-%m-%d")
         if "implants" in csv_df.columns:
-            csv_df["implants"] = csv_df["implants"].apply(
-                lambda x: ", ".join(x) if isinstance(x, list) else str(x)
-            )
+            csv_df["implants"] = csv_df["implants"].apply(lambda x: ", ".join(x) if isinstance(x, list) else str(x))
         for drop in ["month", "year", "quarter"]:
             if drop in csv_df.columns:
                 csv_df.drop(columns=drop, inplace=True)
         st.download_button(
             "⬇️  Download CSV",
             data=csv_df.to_csv(index=False).encode(),
-            file_name=f"orthotrack_{ts}.csv",
+            file_name=f"orthotrack_{timestamp}.csv",
             mime="text/csv",
             use_container_width=True,
         )
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 11️⃣ PDF & EXCEL BUILDERS (unchanged, just using the colour dict)
+# 10️⃣  PDF & EXCEL BUILDERS (unchanged logic, just reference the colour dict)
 # ─────────────────────────────────────────────────────────────────────────────
 def build_pdf(df: pd.DataFrame, title: str, subtitle: str = "") -> io.BytesIO:
-    """Create a branded PDF using ReportLab."""
+    """Create a branded PDF report using ReportLab."""
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -1678,6 +1660,7 @@ def build_pdf(df: pd.DataFrame, title: str, subtitle: str = "") -> io.BytesIO:
     cobalt = colors.HexColor(COLOR["accent"])
     border = colors.HexColor(COLOR["border"])
     muted = colors.HexColor(COLOR["border"])
+
     story = []
 
     # Header
@@ -1785,6 +1768,7 @@ def build_pdf(df: pd.DataFrame, title: str, subtitle: str = "") -> io.BytesIO:
         rows.append(r)
 
     tbl = Table(rows, colWidths=col_widths, repeatRows=1)
+    # zebra striping
     bg = []
     for i in range(1, len(rows)):
         bg.append(("BACKGROUND", (0, i), (-1, i), colors.white if i % 2 else colors.HexColor("#F8FAFC")))
@@ -1823,14 +1807,14 @@ def build_pdf(df: pd.DataFrame, title: str, subtitle: str = "") -> io.BytesIO:
 
 
 def build_excel(df: pd.DataFrame, title: str) -> io.BytesIO:
-    """Create a formatted Excel workbook (Procedures + Summary)."""
+    """Create a fully‑formatted Excel workbook (Procedures + Summary + Region sheets)."""
     buf = io.BytesIO()
     wb = xlsxwriter.Workbook(buf, {"in_memory": True})
 
     def fmt(**kw):
         return wb.add_format({**kw, "font_name": "Calibri"})
 
-    # formats
+    # Common formats
     f_title = fmt(bold=True, font_size=16, font_color=COLOR["ink"])
     f_sub = fmt(font_size=9, font_color=COLOR["border"], italic=True)
     f_hdr = fmt(
@@ -1845,13 +1829,7 @@ def build_excel(df: pd.DataFrame, title: str) -> io.BytesIO:
         text_wrap=True,
     )
     f_cell = fmt(font_size=9, border=1, border_color=COLOR["border"], valign="vcenter")
-    f_alt = fmt(
-        font_size=9,
-        border=1,
-        border_color=COLOR["border"],
-        bg_color=COLOR["card_bg"],
-        valign="vcenter",
-    )
+    f_alt = fmt(font_size=9, border=1, border_color=COLOR["border"], bg_color=COLOR["card_bg"], valign="vcenter")
     f_date = fmt(font_size=9, border=1, border_color=COLOR["border"], num_format="dd mmm yyyy", valign="vcenter")
     f_date_alt = fmt(
         font_size=9,
