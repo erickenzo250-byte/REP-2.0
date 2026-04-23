@@ -1,21 +1,8 @@
-# Streamlit core
 streamlit==1.35.0
-
-# Data handling
 pandas==2.2.2
-numpy==2.0.0          # pandas pulls this in, version‑pin optional
-
-# Visualisation
+numpy==2.0.0
 plotly==5.22.0
-
-# PDF creation
 reportlab==4.2.2
-
-# Excel export
 XlsxWriter==3.2.0
-
-# Fast interactive tables
 streamlit-aggrid==1.0.5
-
-# Date utilities (already a pandas dependency, but pinning avoids warnings)
 python-dateutil==2.9.0post0
