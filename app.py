@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# app.py – OrthoTrack Pro  (world‑class UI, dark‑mode, analytics, reports)
+# app.py – OrthoTrack Pro  (fully‑working, all parentheses closed)
 # ─────────────────────────────────────────────────────────────────────────────
 import streamlit as st
 import pandas as pd
@@ -19,7 +19,7 @@ import xlsxwriter
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1️⃣  PAGE CONFIG
+# 1️⃣ PAGE CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="OrthoTrack Pro",
@@ -29,7 +29,7 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2️⃣  DESIGN SYSTEM & COLOUR DICTIONARY
+# 2️⃣ DESIGN SYSTEM & COLOUR DICTIONARY
 # ─────────────────────────────────────────────────────────────────────────────
 COLOR = {
     # core palette – colour‑blind safe, high contrast
@@ -44,9 +44,7 @@ COLOR = {
     "white"     : "#FFFFFF",   # crisp white
     "card_bg"   : "#F0F4FF",   # subtle card background
 }
-
-# A small palette that Plotly can use for discrete series (e.g. top‑10 reps)
-DISCRETE_PALETTE = px.colors.qualitative.Safe
+DISCRETE_PALETTE = px.colors.qualitative.Safe   # for bar/line series
 
 # Global CSS (fonts, colours, dark‑mode toggle button)
 st.markdown(
@@ -71,7 +69,7 @@ st.markdown(
         color:var(--c-ink) !important;
     }}
 
-    /* Sidebar */
+    /* ── Sidebar ── */
     [data-testid="stSidebar"]{{
         background:var(--c-primary) !important;
         border-right:1px solid #1e2d3d !important;
@@ -97,7 +95,7 @@ st.markdown(
         letter-spacing:1.2px;
     }}
 
-    /* Page header */
+    /* ── Page Header ── */
     .ph{{
         background:linear-gradient(135deg,var(--c-primary),var(--c-accent));
         border-radius:16px;
@@ -258,25 +256,25 @@ st.markdown(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3️⃣  DARK‑MODE TOGGLE (pure‑Python – no JS)
+# 3️⃣ DARK‑MODE TOGGLE (pure‑Python – no JavaScript)
 # ─────────────────────────────────────────────────────────────────────────────
 if "dark_mode" not in st.session_state:
     st.session_state["dark_mode"] = False
 
 
 def toggle_dark():
-    """Flip the dark‑mode flag and rerun."""
+    """Flip the dark‑mode flag and rerun the script."""
     st.session_state["dark_mode"] = not st.session_state["dark_mode"]
     st.experimental_rerun()
 
 
-# Small sun/moon button in the top‑right corner
+# Tiny sun/moon button – appears in the top‑right corner of the page
 col_left, col_right = st.columns([0.9, 0.1])
 with col_right:
     if st.button("🌙" if not st.session_state["dark_mode"] else "☀️", key="dark_toggle"):
         toggle_dark()
 
-# Apply dark‑mode CSS *after* the button so the flag takes effect immediately
+# Apply dark‑mode CSS (runs *after* the button so the flag takes effect)
 if st.session_state["dark_mode"]:
     st.markdown(
         """
@@ -298,13 +296,13 @@ if st.session_state["dark_mode"]:
     )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4️⃣  DATA LAYER  (JSON persistence – simple, portable)
+# 4️⃣ DATA LAYER  (JSON persistence – simple, portable)
 # ─────────────────────────────────────────────────────────────────────────────
 DATA_FILE = "procedures.json"
 
 
 def load_data() -> list:
-    """Read the JSON file – returns a list of dictionaries."""
+    """Read the JSON store – returns a list of dicts."""
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
             return json.load(f)
@@ -312,14 +310,14 @@ def load_data() -> list:
 
 
 def save_data(data: list):
-    """Write the full list back to the JSON file."""
+    """Write the full list back to the JSON store."""
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=2, default=str)
 
 
 @st.cache_data(ttl=2)
 def get_df() -> pd.DataFrame:
-    """Load the JSON → DataFrame + useful date columns."""
+    """Load JSON → DataFrame with useful date columns."""
     raw = load_data()
     if not raw:
         return pd.DataFrame()
@@ -352,7 +350,7 @@ def next_inv(data: list) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5️⃣  PLOTLY THEME HELPER
+# 5️⃣ PLOTLY THEME HELPER
 # ─────────────────────────────────────────────────────────────────────────────
 BASE = dict(
     paper_bgcolor=COLOR["white"],
@@ -367,7 +365,7 @@ BASE = dict(
 def sc(fig: go.Figure, title: str = "", palette_key: str = "seq_blue") -> go.Figure:
     """
     Apply the global theme to a Plotly figure.
-    `palette_key` may be a key from the COLOR dict that maps to a Plotly sequential palette,
+    `palette_key` may be a key from the COLOR dict that maps to a Plotly sequential scheme,
     or any Plotly palette name (e.g. "Blues").
     """
     seq_name = COLOR.get(palette_key, "Blues") if palette_key in COLOR else palette_key
@@ -382,10 +380,10 @@ def sc(fig: go.Figure, title: str = "", palette_key: str = "seq_blue") -> go.Fig
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6️⃣  UI HELPERS (metric cards, Ag‑Grid table, safe‑index helper)
+# 6️⃣ UI HELPERS (metric card, Ag‑Grid table, safe‑index helper)
 # ─────────────────────────────────────────────────────────────────────────────
 def metric_card(title: str, value, delta: str = None):
-    """Render a metric inside a subtle card with a hover lift."""
+    """Render a metric inside a subtle card with hover lift."""
     card_css = """
     <style>
     .metric-card{
@@ -418,7 +416,7 @@ def metric_card(title: str, value, delta: str = None):
 
 
 def ag_grid(df: pd.DataFrame, height: int = 420):
-    """Paginated, searchable Ag‑Grid table."""
+    """Paginated, sortable, filterable table using Ag‑Grid."""
     gb = GridOptionsBuilder.from_dataframe(df)
     gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=20)
     gb.configure_default_column(filter=True, sortable=True, resizable=True)
@@ -446,7 +444,7 @@ def safe_index(value, choices):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7️⃣  CONSTANT LISTS (Reps, Facilities, etc.)
+# 7️⃣ CONSTANT LISTS (Reps, Facilities, etc.)
 # ─────────────────────────────────────────────────────────────────────────────
 REPS = sorted(
     [
@@ -563,8 +561,9 @@ IMPLANTS = sorted(
     ]
 )
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 8️⃣  SIDEBAR (navigation + live statistics)
+# 8️⃣ SIDEBAR (navigation + live stats)
 # ─────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(
@@ -597,16 +596,15 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
         now_m = datetime.now()
-        this_mo = dfs[
+        this_month = dfs[
             (dfs["date"].dt.month == now_m.month) & (dfs["date"].dt.year == now_m.year)
         ]
-        stats = [
+        for val, lbl in [
             (len(dfs), "Total Procedures"),
-            (len(this_mo), "This Month"),
+            (len(this_month), "This Month"),
             (dfs["rep"].nunique() if "rep" in dfs.columns else 0, "Active Reps"),
             (dfs["facility"].nunique() if "facility" in dfs.columns else 0, "Facilities"),
-        ]
-        for val, lbl in stats:
+        ]:
             st.markdown(
                 f'<div class="sp"><div class="sv">{val}</div><div class="sl">{lbl}</div></div>',
                 unsafe_allow_html=True,
@@ -655,7 +653,7 @@ if page == "📊  Dashboard":
 
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
-    # ---- Row 1 : Monthly bar + Region pie ----
+    # ---- Row 1 – Monthly volume + Region pie ---------------------------------
     col1, col2 = st.columns([3, 2])
     with col1:
         monthly = df.groupby("month").size().reset_index(name="Count")
@@ -701,7 +699,7 @@ if page == "📊  Dashboard":
             fig2.update_layout(showlegend=False, height=280)
             st.plotly_chart(fig2, use_container_width=True)
 
-    # ---- Row 2 : Top Reps / Top Procedures ----
+    # ---- Row 2 – Top Reps / Top Procedures ----------------------------------
     col3, col4 = st.columns(2)
     with col3:
         if "rep" in df.columns:
@@ -749,7 +747,7 @@ if page == "📊  Dashboard":
             )
             st.plotly_chart(fig4, use_container_width=True)
 
-    # ---- Row 3 : Top Facilities + Recent Procedures Table ----
+    # ---- Row 3 – Top Facilities + Recent table ------------------------------
     col5, col6 = st.columns([2, 3])
     with col5:
         if "facility" in df.columns:
@@ -786,7 +784,7 @@ if page == "📊  Dashboard":
             rd["date"] = rd["date"].dt.strftime("%d %b %Y")
         ag_grid(rd, height=300)
 
-    # ---- Row 4 : Quarterly Rep Trend (if data exists) ----
+    # ---- Row 4 – Quarterly Rep Trend (if data exists) -----------------------
     if "quarter" in df.columns and "rep" in df.columns:
         st.markdown("---")
         qr = df.groupby(["quarter", "rep"]).size().reset_index(name="Count")
@@ -883,7 +881,7 @@ elif page == "➕  Add Procedure":
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # ---- Validation & Save ----
+    # ---- Validation & Save ----------------------------------------------------
     if submitted:
         # Resolve “Other” selections
         rep_f = rep_other.strip() if rep_sel == "Other" else rep_sel
@@ -1223,7 +1221,7 @@ elif page == "📈  Analytics":
         with fa1:
             sy = st.selectbox(
                 "Year",
-                ["All"] + sorted(df["year"].dropna().astype(str).tolist(), reverse=True,
+                ["All"] + sorted(df["year"].dropna().astype(str).tolist(), reverse=True),
             )
         with fa2:
             sa2 = st.selectbox(
@@ -1242,7 +1240,7 @@ elif page == "📈  Analytics":
 
     # ── Trends ──
     with tab1:
-        # Monthly area
+        # Monthly area chart
         mo = adf.groupby("month").size().reset_index(name="Count")
         fig = px.area(
             mo,
@@ -1255,7 +1253,7 @@ elif page == "📈  Analytics":
         fig.update_layout(height=280)
         st.plotly_chart(fig, use_container_width=True)
 
-        # Day‑of‑week
+        # Day‑of‑week bar
         dow_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         dow = (
             adf["date"]
@@ -1277,7 +1275,7 @@ elif page == "📈  Analytics":
         fig2.update_layout(height=280, showlegend=False, coloraxis_showscale=False)
         st.plotly_chart(fig2, use_container_width=True)
 
-        # Quarterly trends (if present)
+        # Quarterly trends (if we have the columns)
         if "quarter" in adf.columns and "rep" in adf.columns:
             qr = adf.groupby(["quarter", "rep"]).size().reset_index(name="Count")
             fig3 = px.line(
@@ -1513,7 +1511,7 @@ elif page == "⬇️  Reports":
     with rb2:
         fmt = st.selectbox("Export Format", ["📄 PDF (Branded)", "📊 Excel Workbook (.xlsx)", "📑 CSV"])
 
-    # ---- Apply scope filter -------------------------------------------------
+    # ---- Filter according to chosen scope ----
     filtered = df.copy()
     label = "All Procedures"
 
@@ -1596,7 +1594,7 @@ elif page == "⬇️  Reports":
             <div class="dlc">
                 <div class="di">📊</div>
                 <div class="dt">Excel Workbook</div>
-                <div class="dd">3‑sheet workbook: Procedures · Summary Statistics · Regional Breakdown — fully formatted</div> 
+                <div class="dd">3‑sheet workbook: Procedures · Summary Statistics · Regional Breakdown — fully formatted</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1628,7 +1626,9 @@ elif page == "⬇️  Reports":
         if "date" in csv_df.columns:
             csv_df["date"] = csv_df["date"].dt.strftime("%Y-%m-%d")
         if "implants" in csv_df.columns:
-            csv_df["implants"] = csv_df["implants"].apply(lambda x: ", ".join(x) if isinstance(x, list) else str(x))
+            csv_df["implants"] = csv_df["implants"].apply(
+                lambda x: ", ".join(x) if isinstance(x, list) else str(x)
+            )
         for drop in ["month", "year", "quarter"]:
             if drop in csv_df.columns:
                 csv_df.drop(columns=drop, inplace=True)
@@ -1642,10 +1642,10 @@ elif page == "⬇️  Reports":
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 10️⃣  PDF & EXCEL BUILDERS (unchanged logic, just reference the colour dict)
+# 10️⃣  PDF & EXCEL BUILDERS (unchanged logic, just use the colour dict)
 # ─────────────────────────────────────────────────────────────────────────────
 def build_pdf(df: pd.DataFrame, title: str, subtitle: str = "") -> io.BytesIO:
-    """Create a branded PDF report using ReportLab."""
+    """Create a branded PDF using ReportLab."""
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -1807,14 +1807,14 @@ def build_pdf(df: pd.DataFrame, title: str, subtitle: str = "") -> io.BytesIO:
 
 
 def build_excel(df: pd.DataFrame, title: str) -> io.BytesIO:
-    """Create a fully‑formatted Excel workbook (Procedures + Summary + Region sheets)."""
+    """Create a formatted Excel workbook (Procedures + Summary + Region)."""
     buf = io.BytesIO()
     wb = xlsxwriter.Workbook(buf, {"in_memory": True})
 
     def fmt(**kw):
         return wb.add_format({**kw, "font_name": "Calibri"})
 
-    # Common formats
+    # Formats
     f_title = fmt(bold=True, font_size=16, font_color=COLOR["ink"])
     f_sub = fmt(font_size=9, font_color=COLOR["border"], italic=True)
     f_hdr = fmt(
