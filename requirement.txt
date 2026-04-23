@@ -1,9 +1,21 @@
+# Core framework
 streamlit==1.35.0
+
+# Data handling
 pandas==2.2.2
 numpy==2.0.0
+
+# Visualisation (the missing piece)
 plotly==5.22.0
+
+# PDF generation
 reportlab==4.2.2
+
+# Excel export
 XlsxWriter==3.2.0
+
+# Fast, paginated tables
 streamlit-aggrid==1.0.5
+
+# Date utilities (pulled by pandas but pinned for safety)
 python-dateutil==2.9.0post0
-Plotly version: 5.22.0
