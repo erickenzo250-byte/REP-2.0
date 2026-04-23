@@ -5,7 +5,7 @@ streamlit==1.35.0
 pandas==2.2.2
 numpy==2.0.0
 
-# Visualisation (the missing piece)
+# Visualisation (the missing piece that caused the crash)
 plotly==5.22.0
 
 # PDF generation
@@ -17,5 +17,5 @@ XlsxWriter==3.2.0
 # Fast, paginated tables
 streamlit-aggrid==1.0.5
 
-# Date utilities (pulled by pandas but pinned for safety)
+# Date utilities (already a pandas dependency, but kept explicit)
 python-dateutil==2.9.0post0
